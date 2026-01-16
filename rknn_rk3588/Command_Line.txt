@@ -1,0 +1,100 @@
+
+mkdir -p models out
+
+python3 -c '
+from huggingface_hub import hf_hub_download
+repo_id = "mush42/optispeech"
+filename = "checkpoints/lightspeech/en-us/mike-checkpoint_epoch-729_step-305000.ckpt"
+path = hf_hub_download(repo_id=repo_id, filename=filename, local_dir="models", local_dir_use_symlinks=False)
+print("Saved to:", path)
+'
+
+python3 -c '
+from huggingface_hub import hf_hub_download
+repo_id = "mush42/optispeech"
+filename = "onnx/lightspeech/en-us/mike-step_305k.onnx"
+path = hf_hub_download(repo_id=repo_id, filename=filename, local_dir="models", local_dir_use_symlinks=False)
+print("Saved to:", path)
+'
+
+python3 -m optispeech.onnx.infer \
+  models/onnx/lightspeech/en-us/mike-step_305k.onnx \
+  "Hello! This is OptiSpeech running on x86 Linux." \
+  out
+
+pip install transformers -U
+pip install onnxruntime soundfile numpy
+
+python3 python3 test_pytorch.py
+
+
+--------------------- T = 64 -----------------------------
+
+python3 patch_all_ranges.py \
+  --in models/onnx/lightspeech/en-us/mike-step_305k.onnx \
+  --out mike_T64_patched.onnx \
+  --T 64 --frames_per_token 4 --hop 25
+
+python3 bench_optispeech_onnx_cli.py \
+  --onnx mike_T64_patched.onnx \
+  --T 64 \
+  --text "Hello! This is a verification run for mike patched ONNX." \
+  --outdir out_onnx \
+  --warmup 1 --runs 1
+
+python3 onnx_to_rknn_mike.py --onnx mike_T64_patched.onnx --T 64
+
+
+python3 bench_optispeech_rknn_cli.py \
+  --rknn mike_T64.rknn \
+  --T 64 \
+  --text "Are you aware that dozens of American citizens have been harassed, beaten, and locked up?" \
+  --outdir out_rknn \
+  --warmup 1 --runs 1
+
+--------------------- T = 128 -----------------------------
+
+python3 patch_all_ranges.py \
+  --in models/onnx/lightspeech/en-us/mike-step_305k.onnx \
+  --out mike_T128_patched.onnx \
+  --T 128 --frames_per_token 4 --hop 25
+
+python3 bench_optispeech_onnx_cli.py \
+  --onnx mike_T128_patched.onnx \
+  --T 128 \
+  --text "Hello! This is a verification run for mike patched ONNX." \
+  --outdir out_onnx \
+  --warmup 1 --runs 1
+
+python3 onnx_to_rknn_mike.py --onnx mike_T128_patched.onnx --T 128
+
+python3 bench_optispeech_rknn_cli.py \
+  --rknn mike_T128.rknn \
+  --T 128 \
+  --text "In 2025, multiple reports and investigations confirmed that U.S. Immigration and Customs Enforcement (ICE) detained at least 170 U.S. citizens during immigration enforcement operations." \
+  --outdir out_rknn \
+  --warmup 1 --runs 1
+
+
+--------------------- T = 256 -----------------------------
+
+python3 patch_all_ranges.py \
+  --in models/onnx/lightspeech/en-us/mike-step_305k.onnx \
+  --out mike_T256_patched.onnx \
+  --T 256 --frames_per_token 4 --hop 25
+
+python3 bench_optispeech_onnx_cli.py \
+  --onnx mike_T256_patched.onnx \
+  --T 256 \
+  --text "Hello! This is a verification run for mike patched ONNX." \
+  --outdir out_onnx \
+  --warmup 1 --runs 1
+
+python3 onnx_to_rknn_mike.py --onnx mike_T256_patched.onnx --T 256
+
+python3 bench_optispeech_rknn_cli.py \
+  --rknn mike_T256.rknn \
+  --T 256 \
+  --text "In 2025, multiple reports and investigations confirmed that U.S. Immigration and Customs Enforcement (ICE) detained at least 170 U.S. citizens during immigration enforcement operations." \
+  --outdir out_rknn \
+  --warmup 1 --runs 1    
