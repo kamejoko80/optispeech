@@ -3,7 +3,7 @@ mkdir -p models out
 
 python3 -c '
 from huggingface_hub import hf_hub_download
-repo_id = "mush42/optispeech"
+repo_id = "henrydang80/optispeech"
 filename = "checkpoints/lightspeech/en-us/mike-checkpoint_epoch-729_step-305000.ckpt"
 path = hf_hub_download(repo_id=repo_id, filename=filename, local_dir="models", local_dir_use_symlinks=False)
 print("Saved to:", path)
@@ -11,7 +11,15 @@ print("Saved to:", path)
 
 python3 -c '
 from huggingface_hub import hf_hub_download
-repo_id = "mush42/optispeech"
+repo_id = "henrydang80/optispeech"
+filename = "checkpoints/lightspeech/en-us/hfc_female-en_us-checkpoint_epoch-2174_step-451407.ckpt"
+path = hf_hub_download(repo_id=repo_id, filename=filename, local_dir="models", local_dir_use_symlinks=False)
+print("Saved to:", path)
+'
+
+python3 -c '
+from huggingface_hub import hf_hub_download
+repo_id = "henrydang80/optispeech"
 filename = "onnx/lightspeech/en-us/mike-step_305k.onnx"
 path = hf_hub_download(repo_id=repo_id, filename=filename, local_dir="models", local_dir_use_symlinks=False)
 print("Saved to:", path)
@@ -25,7 +33,7 @@ python3 -m optispeech.onnx.infer \
 pip install transformers -U
 pip install onnxruntime soundfile numpy
 
-python3 python3 test_pytorch.py
+python3 test_pytorch.py
 
 
 --------------------- T = 64 -----------------------------
