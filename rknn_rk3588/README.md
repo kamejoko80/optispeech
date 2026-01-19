@@ -253,7 +253,7 @@ path = hf_hub_download(repo_id=repo_id, filename=filename, local_dir="models", l
 print("Saved to:", path)
 '
 
-python3 python3 test_pytorch.py
+python3 test_pytorch.py
 ```
 
 Run RKNN with the coverted models:
