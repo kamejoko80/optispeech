@@ -291,3 +291,77 @@ python3 bench_optispeech_rknn_cli.py \
   --outdir out_rknn \
   --warmup 1 --runs 1
 ```
+
+### Model Training Guidle (Linux x86)
+
+Goto the repo root directory:
+
+```bash
+cd optispeech
+mkdir -p datasets && cd datasets
+wget -O LJSpeech-1.1.tar.bz2 https://data.keithito.com/data/speech/LJSpeech-1.1.tar.bz2
+tar -xjf LJSpeech-1.1.tar.bz2
+```
+
+Resample the wav files to 24K:
+
+```bash
+cd ..
+python3 scripts/resample_ljspeech_to_24k.py
+```
+
+Covert ljspeech datasets to Hydra fortmat:
+
+```bash
+rm -rf data/hfc_female-en_us/input
+python3 scripts/convert_ljspeech_to_optispeech_input.py \
+  --ljspeech_dir datasets/LJSpeech-1.1 \
+  --out_input_dir data/hfc_female-en_us/input \
+  --val_size 500
+```
+
+Run the preprocess_dataset:
+
+```bash
+rm -rf data/hfc_female-en_us/output
+python3 -m optispeech.tools.preprocess_dataset \
+  --format ljspeech \
+  -w 4 -b 1 \
+  hfc_female-en_us \
+  data/hfc_female-en_us/input \
+  data/hfc_female-en_us/output
+```
+
+For NVIDIA GeForce GTX 1650 (4GB VRAM) need to limit the datasets to avoid CUDA OOM:
+
+```bash
+python3 scripts/make_safe_filelists.py \
+  --train_in data/hfc_female-en_us/output/train.txt \
+  --val_in   data/hfc_female-en_us/output/val.txt \
+  --train_out data/hfc_female-en_us/output/train.safe.txt \
+  --val_out   data/hfc_female-en_us/output/val.safe.txt \
+  --min_s 0.2 --max_s 6.0 --sr 24000 \
+  --max_mel_frames 360 --max_phoneme 160
+```
+
+Start training with a limited 300000 steps:
+
+```bash
+export CUDA_VISIBLE_DEVICES=0
+export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True,max_split_size_mb:32,garbage_collection_threshold:0.8
+
+python3 -m optispeech.train experiment=hfc_female-en_us \
+  run_name=opti_hfc_female_gpu \
+  data.train_filelist_path=data/hfc_female-en_us/output/train.safe.txt \
+  data.valid_filelist_path=data/hfc_female-en_us/output/val.safe.txt \
+  data.batch_size=1 data.num_workers=2 data.pin_memory=true \
+  model.train_args.gradient_accumulate_batches=64 \
+  trainer.accelerator=gpu trainer.devices=1 trainer.precision=16-mixed \
+  +trainer.num_sanity_val_steps=0 +trainer.limit_val_batches=0.0 \
+  +trainer.max_steps=300000 \
+  model.generator.segment_size=16 \
+  model.train_args.evaluate_utmos=false \
+  model.train_args.evaluate_pesq=false \
+  model.train_args.evaluate_periodicity=false \
+  callbacks.model_checkpoint.save_last=true
+```  
