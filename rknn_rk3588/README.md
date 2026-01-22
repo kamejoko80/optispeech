@@ -367,4 +367,10 @@ python3 -m optispeech.train experiment=hfc_female-en_us \
   model.train_args.evaluate_pesq=false \
   model.train_args.evaluate_periodicity=false \
   callbacks.model_checkpoint.save_last=true 
+```
+
+Run this to see the resolved config for your experiment:
+
+```bash
+python3 -m optispeech.train experiment=hfc_female-en_us --cfg job --resolve
 ```  
