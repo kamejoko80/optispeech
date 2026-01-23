@@ -294,6 +294,8 @@ python3 bench_optispeech_rknn_cli.py \
 
 ### Model Training Guidle (Linux x86)
 
+Read this discussion: https://github.com/mush42/optispeech/issues/2
+
 Goto the repo root directory:
 
 ```bash
@@ -363,11 +365,79 @@ python3 -m optispeech.train experiment=ljspeech \
   trainer.accelerator=gpu trainer.devices=1 trainer.precision=16-mixed \
   +trainer.num_sanity_val_steps=0 \
   +trainer.limit_val_batches=0.0 \
-  model.generator.segment_size=2 \
+  +trainer.max_steps=300000 \
+  model.generator.segment_size=8 \
   model.train_args.evaluate_utmos=false \
   model.train_args.evaluate_pesq=false \
   model.train_args.evaluate_periodicity=false \
+  callbacks.model_checkpoint.every_n_epochs=1 \
   callbacks.model_checkpoint.save_last=true
+```
+
+Parameter meaning:
+
+```
+1) export PYTORCH_CUDA_ALLOC_CONF=...
+
+This controls PyTorch’s CUDA memory allocator behavior (to reduce fragmentation and OOM spikes).
+
+    • expandable_segments:True
+    Lets the allocator use growable memory segments instead of many fixed chunks. This often reduces fragmentation and “OOM even though free memory exists”.
+
+    • max_split_size_mb:24
+    Limits how big a memory block PyTorch is allowed to split into smaller blocks.
+    Smaller value (like 24 MB) can reduce fragmentation in some workloads, but sometimes can make allocation slower.
+    If you still see fragmentation/OOM, you try values like 32, 64, 128 depending on behavior.
+
+    • garbage_collection_threshold:0.8
+    Controls how aggressively the allocator reclaims cached blocks.
+    0.8 means: when memory pressure is high (roughly 80% utilization), it will start freeing cached blocks sooner, helping avoid sudden OOM.
+
+2) data.batch_size=1
+
+This is the micro-batch size per training step (per GPU).
+
+    • batch_size=1 means each forward/backward pass uses 1 sample at a time, which is the lowest VRAM setting.
+    If you want “effective batch size” bigger than 1, you use gradient accumulation (like model.train_args.gradient_accumulate_batches=64).
+    Effective batch size ≈ batch_size * gradient_accumulate_batches * num_gpus
+    So 1 * 64 * 1 = 64 effective batch (but slower).
+
+3) data.num_workers=1
+
+This is the number of CPU worker processes used by the PyTorch DataLoader to load data in parallel.
+
+    • Higher num_workers ⇒ faster data loading, but more CPU/RAM usage and sometimes more instability (especially on some systems).
+
+    • num_workers=1 is the safest, most stable option (but can be slower).
+
+    This does not directly reduce GPU VRAM, but it can help avoid system memory pressure / stalls.
+
+
+4) model.generator.segment_size=8
+
+This is a big VRAM lever.
+
+OptiSpeech trains on audio/feature segments (chunks). segment_size controls the chunk length used in training (not the dataset’s full utterance length).
+
+    • Smaller segment_size ⇒ shorter chunks ⇒ smaller tensors (mel, alignment, conv/transformer activations) ⇒ much lower VRAM.
+
+    • But smaller segments can:
+
+        • slow convergence
+
+        • reduce audio quality early on
+
+        • make training noisier
+
+In your earlier config you used 16; setting 8 is even more VRAM-friendly.
+
+Practical summary for your low-VRAM case
+
+        • batch_size=1 + segment_size=8 are the main VRAM reducers.
+
+        • PYTORCH_CUDA_ALLOC_CONF=... reduces OOM caused by fragmentation, especially near the end of epochs / validation / checkpointing.
+
+        • num_workers=1 is mostly for stability and avoiding CPU/RAM pressure.
 ```
 
 Run this to see the resolved config for your experiment:
