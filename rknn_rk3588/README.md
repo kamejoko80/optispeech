@@ -366,11 +366,11 @@ python3 -m optispeech.train experiment=ljspeech \
   +trainer.num_sanity_val_steps=0 \
   +trainer.limit_val_batches=0.0 \
   +trainer.max_steps=300000 \
-  model.generator.segment_size=8 \
+  model.generator.segment_size=2 \
   model.train_args.evaluate_utmos=false \
   model.train_args.evaluate_pesq=false \
   model.train_args.evaluate_periodicity=false \
-  callbacks.model_checkpoint.every_n_epochs=1 \
+  callbacks.model_checkpoint.every_n_epochs=4 \
   callbacks.model_checkpoint.save_last=true
 ```
 
