@@ -292,7 +292,7 @@ python3 bench_optispeech_rknn_cli.py \
   --warmup 1 --runs 1
 ```
 
-### Model Training Guidle (Linux x86)
+### Model Training Guidle LJSpeech (Linux x86)
 
 Read this discussion: https://github.com/mush42/optispeech/issues/2
 
@@ -346,7 +346,7 @@ mv data/LJSpeech-1.1/val.filter.txt data/LJSpeech-1.1/val.txt
 Must run data statistics before training:
 
 ```bash
-python -m optispeech.tools.generate_data_statistics ljspeech
+python3 -m optispeech.tools.generate_data_statistics ljspeech
 ```
 
 Start training:
@@ -444,4 +444,88 @@ Run this to see the resolved config for your experiment:
 
 ```bash
 python3 -m optispeech.train experiment=ljspeech --cfg job --resolve
+```
+
+### Model Training Guidle Mike (Linux x86)
+
+Goto the repo root directory:
+
+```bash
+cd optispeech
+mkdir -p datasets
+cp hfc_en-US_M.zip datasets
+cd datasets
+unzip hfc_en-US_M.zip
+cd ..
+```
+
+Covert hfc_en-US_M datasets to Hydra fortmat:
+
+
+```bash
+rm -rf datasets/hi-fi-captain_optispeech
+
+python3 scripts/mike_convert_hifi_captain_to_optispeech.py \
+  --wav_dir  datasets/hi-fi-captain/en-US/male/wav/train_parallel \
+  --text_file datasets/hi-fi-captain/en-US/male/text/train_parallel.txt \
+  --out_dir  datasets/hi-fi-captain_optispeech \
+  --val_count 500 \
+  --seed 1234
+
+python3 scripts/mike_link_wavs.py \
+  --out_root datasets/hi-fi-captain_optispeech \
+  --wav_src datasets/hi-fi-captain/en-US/male/wav/train_parallel \
+  --mode symlink
+```
+
+Run the preprocess_dataset. If this process is failed with NVIDIA GeForce GTX 1650 (4GB VRAM)
+Then we need to filter out the raw data before executing preprocess_dataset script instead.
+
+```bash
+python3 scripts/mike_filter_metadata_by_wav_duration.py \
+  --root datasets/hi-fi-captain_optispeech \
+  --max_s 5.0 \
+  --backup
+```
+
+```bash
+rm -rf data/mike
+
+python3 -m optispeech.tools.preprocess_dataset \
+  mike \
+  datasets/hi-fi-captain_optispeech \
+  data/mike \
+  --format ljspeech \
+  -w 4 -b 1
+```
+
+Must run data statistics before training:
+
+```bash
+python3 -m optispeech.tools.generate_data_statistics mike
+```
+
+Start training:
+
+```bash
+export CUDA_VISIBLE_DEVICES=0
+export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True,max_split_size_mb:24,garbage_collection_threshold:0.8
+
+python3 -m optispeech.train experiment=mike-lightspeech \
+  data.train_filelist_path="data/mike/train.txt" \
+  data.valid_filelist_path="data/mike/val.txt" \
+  data.batch_size=1 \
+  data.num_workers=1 \
+  data.pin_memory=true \
+  model.train_args.gradient_accumulate_batches=16 \
+  trainer.accelerator=gpu trainer.devices=1 trainer.precision=16-mixed \
+  +trainer.num_sanity_val_steps=0 \
+  +trainer.limit_val_batches=0.0 \
+  +trainer.max_steps=300000 \
+  model.generator.segment_size=1 \
+  model.train_args.evaluate_utmos=false \
+  model.train_args.evaluate_pesq=false \
+  model.train_args.evaluate_periodicity=false \
+  callbacks.model_checkpoint.every_n_epochs=10 \
+  callbacks.model_checkpoint.save_last=true
 ```  
