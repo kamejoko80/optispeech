@@ -303,74 +303,75 @@ wget -O LJSpeech-1.1.tar.bz2 https://data.keithito.com/data/speech/LJSpeech-1.1.
 tar -xjf LJSpeech-1.1.tar.bz2
 ```
 
-Resample the wav files to 24K:
-
-```bash
-cd ..
-python3 scripts/resample_ljspeech_to_24k.py
-```
-
 Covert ljspeech datasets to Hydra fortmat:
 
 ```bash
-rm -rf data/hfc_female-en_us/input
-python3 scripts/convert_ljspeech_to_optispeech_input.py \
-  --ljspeech_dir datasets/LJSpeech-1.1 \
-  --out_input_dir data/hfc_female-en_us/input \
-  --val_size 500
+cd ..
+python3 scripts/split_ljspeech_for_optispeech.py
+python3 scripts/link_ljspeech_wavs_for_optispeech.py
+python3 scripts/fix_ljspeech_metadata.py
 ```
 
-Run the preprocess_dataset:
+Run the preprocess_dataset. If this process is failed with NVIDIA GeForce GTX 1650 (4GB VRAM)
+Then we need to filter out the LJSpeech raw data before executing preprocess_dataset script instead.
 
 ```bash
-rm -rf data/hfc_female-en_us/output
+rm -rf data/LJSpeech-1.1
 python3 -m optispeech.tools.preprocess_dataset \
   --format ljspeech \
-  -w 4 -b 1 \
-  hfc_female-en_us \
-  data/hfc_female-en_us/input \
-  data/hfc_female-en_us/output
+  -w 1 -b 1 \
+  ljspeech \
+  datasets/LJSpeech-1.1_optispeech \
+  data/LJSpeech-1.1
 ```
 
-For NVIDIA GeForce GTX 1650 (4GB VRAM) need to limit the datasets to avoid CUDA OOM:
+For NVIDIA GeForce GTX 1650 (4GB VRAM) need to filter out utterances with audio more than a number (for ex. 6.0s) to avoid CUDA OOM:
 
 ```bash
-python3 scripts/make_safe_filelists.py \
-  --train_in data/hfc_female-en_us/output/train.txt \
-  --val_in   data/hfc_female-en_us/output/val.txt \
-  --train_out data/hfc_female-en_us/output/train.safe.txt \
-  --val_out   data/hfc_female-en_us/output/val.safe.txt \
-  --min_s 0.2 --max_s 6.0 --sr 24000 \
-  --max_mel_frames 360 --max_phoneme 160
+python3 scripts/filter_ljspeech_by_audio_len.py --root data/LJSpeech-1.1 --max_s 6.0 --sr 22050
 ```
 
-Start training with a limited 300000 steps:
+Backup and rename new train.txt val.txt:
+
+```bash
+mv data/LJSpeech-1.1/train.txt data/LJSpeech-1.1/train_orig.txt
+mv data/LJSpeech-1.1/val.txt data/LJSpeech-1.1/val_orig.txt
+
+mv data/LJSpeech-1.1/train.filter.txt data/LJSpeech-1.1/train.txt
+mv data/LJSpeech-1.1/val.filter.txt data/LJSpeech-1.1/val.txt
+```
+
+Must run data statistics before training:
+
+```bash
+python -m optispeech.tools.generate_data_statistics ljspeech
+```
+
+Start training:
 
 ```bash
 export CUDA_VISIBLE_DEVICES=0
 export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True,max_split_size_mb:24,garbage_collection_threshold:0.8
 
-python3 -m optispeech.train experiment=hfc_female-en_us \
-  run_name=opti_hfc_female_gpu \
-  data.train_filelist_path=data/hfc_female-en_us/output/train.safe.txt \
-  data.valid_filelist_path=data/hfc_female-en_us/output/val.safe.txt \
+python3 -m optispeech.train experiment=ljspeech \
+  data.train_filelist_path="data/LJSpeech-1.1/train.txt" \
+  data.valid_filelist_path="data/LJSpeech-1.1/val.txt" \
   data.batch_size=1 \
-  data.num_workers=4 \
+  data.num_workers=1 \
   data.pin_memory=true \
   model.train_args.gradient_accumulate_batches=64 \
   trainer.accelerator=gpu trainer.devices=1 trainer.precision=16-mixed \
   +trainer.num_sanity_val_steps=0 \
   +trainer.limit_val_batches=0.0 \
-  +trainer.max_steps=300000 \
   model.generator.segment_size=2 \
   model.train_args.evaluate_utmos=false \
   model.train_args.evaluate_pesq=false \
   model.train_args.evaluate_periodicity=false \
-  callbacks.model_checkpoint.save_last=true 
+  callbacks.model_checkpoint.save_last=true
 ```
 
 Run this to see the resolved config for your experiment:
 
 ```bash
-python3 -m optispeech.train experiment=hfc_female-en_us --cfg job --resolve
+python3 -m optispeech.train experiment=ljspeech --cfg job --resolve
 ```  
