@@ -509,20 +509,20 @@ Start training:
 
 ```bash
 export CUDA_VISIBLE_DEVICES=0
-export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True,max_split_size_mb:24,garbage_collection_threshold:0.8
+export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True,max_split_size_mb:32,garbage_collection_threshold:0.8
 
-python3 -m optispeech.train experiment=mike-lightspeech \
+python3 -m optispeech.train experiment=mike-lightspeech  \
   data.train_filelist_path="data/mike/train.txt" \
   data.valid_filelist_path="data/mike/val.txt" \
   data.batch_size=1 \
-  data.num_workers=1 \
+  data.num_workers=2 \
   data.pin_memory=true \
-  model.train_args.gradient_accumulate_batches=16 \
+  model.train_args.gradient_accumulate_batches=64 \
   trainer.accelerator=gpu trainer.devices=1 trainer.precision=16-mixed \
   +trainer.num_sanity_val_steps=0 \
   +trainer.limit_val_batches=0.0 \
   +trainer.max_steps=300000 \
-  model.generator.segment_size=8 \
+  model.generator.segment_size=16 \
   model.train_args.evaluate_utmos=false \
   model.train_args.evaluate_pesq=false \
   model.train_args.evaluate_periodicity=false \
