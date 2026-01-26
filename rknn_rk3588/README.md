@@ -484,7 +484,13 @@ Then we need to filter out the raw data before executing preprocess_dataset scri
 ```bash
 python3 scripts/mike_filter_metadata_by_wav_duration.py \
   --root datasets/hi-fi-captain_optispeech \
-  --max_s 5.0 \
+  --max_s 4.0 \
+  --dry-run
+
+
+python3 scripts/mike_filter_metadata_by_wav_duration.py \
+  --root datasets/hi-fi-captain_optispeech \
+  --max_s 4.0 \
   --backup
 ```
 
