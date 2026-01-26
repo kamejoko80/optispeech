@@ -499,6 +499,16 @@ python3 -m optispeech.tools.preprocess_dataset \
   -w 4 -b 1
 ```
 
+Options, more filter out the input data to avoid OOM issue:
+
+MAX_WAV_S   = 5.0     # seconds (try 4.0 if still OOM)
+MAX_MEL_FR  = 450     # frames (try 350 if still OOM)
+MAX_PHONEME = 180     # tokens (try 140 if still OOM)
+
+```bash
+python3 scripts/mike_filter_npz_json.py --max_s 4 --max_mel_frame 200 --max_phoneme 70 --backup
+```
+
 Must run data statistics before training:
 
 ```bash
