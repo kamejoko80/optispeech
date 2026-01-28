@@ -12,7 +12,7 @@ pip install -U pip
 Install OptiSpeech from github repo:
 
 ```bash
-https://github.com/kamejoko80/optispeech.git
+git clone https://github.com/kamejoko80/optispeech.git
 cd optispeech
 git checkout henry_training
 pip install -e .
@@ -28,6 +28,7 @@ pip install onnxruntime soundfile numpy
 ### Model Training Guidle (hfc_female-en_us on Linux x86)
 
 Read this discussion: https://github.com/mush42/optispeech/issues/2
+
 OptiSpeech training procedue:
 
 
@@ -102,12 +103,12 @@ Preprocess the dataset
 ```bash
 cd optispeech
 
-!rm -rf data/emily
-!python3 -m optispeech.tools.preprocess_dataset \
-    --format ljspeech \
-    emily \
-    datasets/hfc_female-en_us-dataset \
-    data/emily
+rm -rf data/emily
+python3 -m optispeech.tools.preprocess_dataset \
+   --format ljspeech \
+   emily \
+   datasets/hfc_female-en_us-dataset \
+   data/emily
 ```
 
 When done we have a preprocessed data under data/emily folder:
