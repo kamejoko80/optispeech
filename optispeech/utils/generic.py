@@ -187,19 +187,21 @@ def to_numpy(tensor):
 
 def save_figure_to_numpy(fig: plt.Figure) -> np.ndarray:
     """
-    Save a matplotlib figure to a numpy array.
-
-    Args:
-        fig (Figure): Matplotlib figure object.
-
-    Returns:
-        ndarray: Numpy array representing the figure.
+    Converts a matplotlib figure to a numpy array.
     """
-    data = np.fromstring(fig.canvas.tostring_rgb(), dtype=np.uint8, sep="")
-    data = data.reshape(fig.canvas.get_width_height()[::-1] + (3,))
+    import io
+    from PIL import Image
+    import numpy as np
+
+    # Save the figure to a BytesIO object
+    buf = io.BytesIO()
+    fig.savefig(buf, format='png', bbox_inches='tight', pad_inches=0)
+    buf.seek(0)
+
+    # Open the image with PIL and convert to a NumPy array
+    img = Image.open(buf)
+    data = np.array(img)
     return data
-
-
 def plot_spectrogram_to_numpy(spectrogram, filename):
     fig, ax = plt.subplots(figsize=(12, 3))
     im = ax.imshow(spectrogram, aspect="auto", origin="lower", interpolation="none")
