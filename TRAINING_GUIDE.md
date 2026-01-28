@@ -39,7 +39,6 @@ python -m optispeech.tools.preprocess_dataset \
     <my_dataset_config> \
     <my_dataset_directory> \
     <processed_dataset_directory>
-  --output "datasets/hfc_female-en_us-dataset"
 ```
 
 2. Generate dataset statistics and update the config with them:
